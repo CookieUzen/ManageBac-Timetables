@@ -1,121 +1,190 @@
-#!/bin/bash
-cd "$HOME/managebac"
-mapfile -t now < this\ week
-mapfile -t before < next\ week
-mapfile -t after < previous\ week
+#/bin/bash
 
-# Colors
-RESET=$(echo -en '\033[0m')
-RED=$(echo -en '\033[00;31m')
-BLUE=$(echo -en '\033[00;34m')
+# Variables
+datasheet="$HOME/.config/managebac/sheet"
+__ScriptVersion="2.0"
 
-# Setting Variables
-Monday=("${now[0]}" "${now[1]}" "${now[2]}" "${now[3]}")
-Tuesday=("${now[4]}" "${now[5]}" "${now[6]}" "${now[7]}")
-Wednesday=("${now[8]}" "${now[9]}" "${now[10]}" "${now[11]}")
-Thursday=("${now[12]}" "${now[13]}" "${now[14]}" "${now[15]}")
-Friday=("${now[16]}" "${now[17]}" "${now[18]}" "${now[19]}")
+# Functions
+function usage () {
+    echo "
+  Usage :  $0 [options] [commands]
+  Options:
+  -h    | Display this message
+  -v    | Display script version
+  -m    | Display manual/README of this program
 
-LMonday=("${before[0]}" "${before[1]}" "${before[2]}" "${before[3]}")
-LTuesday=("${before[4]}" "${before[5]}" "${before[6]}" "${before[7]}")
-LWednesday=("${before[8]}" "${before[9]}" "${before[10]}" "${before[11]}")
-LThursday=("${before[12]}" "${before[13]}" "${before[14]}" "${before[15]}")
-LFriday=("${before[16]}" "${before[17]}" "${before[18]}" "${before[19]}")
+  -n    | Set the date to today's classes
+  -t    | Set the date to tomorrow's classes
+  -y    | Set the date to yesterday's classes
+  -a    | Set the date to classes in +/-days
+  -d    | Set the date to classes at date
+  -r    | Set the date to classes at a range of dates (seperated by '~')
+  -s    | Scan a ManageBac HTML file to generate a database of classes
 
-NMonday=("${after[0]}" "${after[1]}" "${after[2]}" "${after[3]}")
-NTuesday=("${after[4]}" "${after[5]}" "${after[6]}" "${after[7]}")
-NWednesday=("${after[8]}" "${after[9]}" "${after[10]}" "${after[11]}")
-NThursday=("${after[12]}" "${after[13]}" "${after[14]}" "${after[15]}")
-NFriday=("${after[16]}" "${after[17]}" "${after[18]}" "${after[19]}")
-
-function Day() {
-    for (( i = 0; i < 4; i++ ))
-    do
-        case $date in
-            Monday)
-            echo ${Monday[$i]}
-                ;;
-            Tuesday)
-            echo ${Tuesday[$i]}
-                ;;
-            Wednesday)
-            echo ${Wednesday[$i]}
-                ;;
-            Thursday)
-            echo ${Thursday[$i]}
-                ;;
-            Friday)
-            echo ${Friday[$i]} 
-                ;;
-        esac
-    done
-    echo
-}
-
-function Today() {
-    #Prints today's timetable
-    echo ${BLUE}Today\'s Classes are:${RESET} 
-    date=`date +"%A"`
-    Day
-}
-
-function Tomorrow() {
-    echo ${BLUE}Tomorrow\'s Classes are:${RESET} 
-    date=`date -d tomorrow +"%A"`
-    Day
-}
-
-function Yesterday() {
-    echo ${BLUE}Yesterday\'s Classes are:${RESET} 
-    date=`date -d tomorrow +"%A"`
-    Day
-}
-
-function Date() {
-    num=${OPTARG}
-    date=`date --date="$num day" +"%A"`
-    echo ${BLUE}`date --date="$num day" +"%A"` \($num\) Days Later\'s Classes are:${RESET} 
-    Day
-}
-
-__ScriptVersion="1.0"
-function usage ()
-{
-    echo "Usage :  $0 [options]
-
-    Options:
-    -h|help       Display this message
-    -v|version    Display script version
-    -n|now        Display today's classes
-    -t|tomorrow   Display tomorrow's classes
-    -y|yesterday  Display yesterday's classes
-    -d|date       Display classes in +days (example ./timetable.sh -d +10)
+  Commands:
+  show  | Show Timetables for a certain day
+  find  | Find all occurances of a certain class
+  set   | update database
     "
 }
 
-#-----------------------------------------------------------------------
-#  Handle command line arguments
-#-----------------------------------------------------------------------
+function manual() {
+    echo "
+# ManageBac-Timetables
+This is a tiny bash script (less than 160 lines of code) that pulls the classes timetable off ManageBac into a text file. Then, script provides easy access and searching through the classes.
 
-while getopts ":hvntyd:" opt
-do
+## Installation
+To install the program, run the install.sh file.
+
+## Database
+First, we have to create a database for the upcomming classes in order for the program to work.  
+Open your managebac page on any web browser, then save the website. Save the website in HTML format, then run:
+    timetable-scannner file1 file2 file3 ...
+Where the files represent your managebac html files. 
+
+## Usage
+After we have successfully created a database for and program, we can run the managebac script.
+  
+The script works on a principle of flags and commands. With the flags specifying a date, and the command performing an action.
+  
+For Example:
+  timetable -a +10 show
+This command will show the timetable classes of classes 10 days later.
+  
+For more information, read the help page:
+timetable -h
+
+    " | less
+}
+
+function fetch() { 
+    # ManageBac Date
+    for (( i = 0; i < ${#cdate[@]}; i++ )); do
+        mdate=("${mdate[@]}" "$(date --date="${cdate[i]}" +"%B %d")")
+
+        line=$(grep "${mdate[i]}" "$datasheet")
+        c1=("${c1[@]}" "$(echo $line | cut -d',' -f2)")
+        c2=("${c2[@]}" "$(echo $line | cut -d',' -f3)")
+        c3=("${c3[@]}" "$(echo $line | cut -d',' -f4)")
+        c4=("${c4[@]}" "$(echo $line | cut -d',' -f5)")
+        
+        [[ -z ${c1[i]} ]] && c1[i]="None"
+        [[ -z ${c2[i]} ]] && c2[i]="None"
+        [[ -z ${c3[i]} ]] && c3[i]="None"
+        [[ -z ${c4[i]} ]] && c4[i]="None"
+    done
+}
+
+function show() {
+    fetch
+    for (( i = 0; i < ${#mdate[@]}; i++ )); do
+        echo "${mdate[i]}'s classes are:"
+        echo ${c1[i]}
+        echo ${c2[i]}
+        echo ${c3[i]}
+        echo ${c4[i]}
+        echo
+    done
+}
+
+function find() {
+    for (( i = 0; i < ${#cdate[@]}; i++ )); do
+        mdate=("${mdate[@]}" "$(date --date="${cdate[i]}" +"%B %d")")
+        line=$(grep "${mdate[i]}" "$datasheet")
+    done
+    
+    echo ${lines[@]}
+
+}
+
+function set() {
+    # Fetching ManageBac html file
+    cd "$HOME"/.config/managebac
+
+    # Finding Classes
+    for f in ManageBac*.html
+    do
+        echo Processing $f...
+
+        grep class-name "$f" | cut -d'>' -f3 | sed 's/<\/a//' | rev | cut -d' ' -f2,3,4,5,6,7 | rev | sed 's/JoB//' | sed 's/YH//' > data$i
+
+        grep '<th>' "$f" | sed 's/<th>//' | sed 's/<\/th>//' | sed 's/Period//'| sed 's/,//' >> data$i 
+
+        # Put classes in the right order
+        printf '%s\n' 6m1 11m2 16m3 9m5 13m6 17m7 12m9 15m10 18m11 15m13 17m14 19m15 w q | ed -s data$i
+
+        # Put the dates in the right order
+        printf '%s\n' 22m0 23m5 24m10 25m15 26m20 26d w q | ed -s data$i
+
+    done
+
+    echo Cleaning Up
+    cat data* > sheet
+    sed -i 's/[ \t]*$//' "sheet"
+    sed -i '$!N;$!N;$!N;$!N;s/\n/,/g' "sheet"
+}
+
+# Handling Flags
+while getopts ":hnvd:a:tyr:m" opt; do
   case $opt in
 
-    h|help      )  usage; exit 0   ;;
+    h)
+        usage; exit 0
+        ;;
 
-    v|version   )  echo "$0 -- Version $__ScriptVersion"; exit 0   ;;
+    v)
+        echo "$0 -- Version $__ScriptVersion"; exit 0  
+        ;;
 
-    n|now       )  Today;;
+    a)
+        cdate=("${cdate[@]}" "$(date --date="$OPTARG days" +"%Y-%m-%d")")
+        ;;
 
-    t|tomorrow  )  Tomorrow;;
+    d)
+        cdate=("${cdate[@]}" "$(date --date="$OPTARG" +"%Y-%m-%d")")
+        ;;
 
-    y|yesterday )  Yesterday;;
+    y)
+        cdate=("${cdate[@]}" "$(date --date="yesterday" +"%Y-%m-%d")")
+        ;;
 
-    d|date      )  Date;;
+    t)
+        cdate=("${cdate[@]}" "$(date --date="tomorrow" +"%Y-%m-%d")")
+        ;;
+    n)
+        cdate=("${cdate[@]}" "$(date --date="today" +"%Y-%m-%d")")
+        ;;
+    r)
+        ddate=$(date --date="$(echo "$OPTARG" | cut -d'~' -f1)" +"%Y-%m-%d")
+          end=$(date --date="$(echo "$OPTARG" | cut -d'~' -f2)" +"%Y-%m-%d")
 
-    * )  echo -e "\n  Option does not exist : $OPTARG\n"
-          usage; exit 1   ;;
+        while [[ "$ddate" != "$end" ]]; do
+            list=("${list[@]}" "$ddate")
+            ddate=$(date --date="$ddate +1day" +"%Y-%m-%d")
+        done
 
-  esac    # --- end of case ---
+        cdate=("${cdate[@]}" "${list[@]}")
+        ;;
+
+    m)
+        manual
+        ;;
+
+    * ) 
+        echo -e "\n    Option does not exist : -$OPTARG" 
+        usage; exit 1
+        ;;
+
+  esac
 done
 shift $(($OPTIND-1))
+
+# Handling Commands
+for (( i = 1; i < $# + 1; i++ )); do
+    case ${!i} in
+        show)   show ;;
+        help)   usage; exit 0 ;;
+        find)   find ;;
+        set)    set ;;
+    esac
+done
