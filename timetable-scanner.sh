@@ -11,6 +11,9 @@ function usage () {
 
     Files:
     Insert files as arguements, and it will generate a database for the Managebac-timetable script.
+
+    Note:
+    Everytime this command is run, it will erase the previous ManageBac Timetable Database.
     "
 }
 
@@ -29,13 +32,18 @@ do
 done
 shift $(($OPTIND-1))
 
+if [[ $# -eq 0 ]]; then
+    usage;
+    exit 0
+fi
+
 # Finding Classes
 for (( i = 1; i < $# + 1; i++ )); do
     echo Processing ${!i}...
 
-    grep class-name "$f" | cut -d'>' -f3 | sed 's/<\/a//' | rev | cut -d' ' -f2,3,4,5,6,7 | rev | sed 's/JoB//' | sed 's/YH//' > data$i
+    grep class-name "${!i}" | cut -d'>' -f3 | sed 's/<\/a//' | rev | cut -d' ' -f2,3,4,5,6,7 | rev | sed 's/JoB//' | sed 's/YH//' > data$i
 
-    grep '<th>' "$f" | sed 's/<th>//' | sed 's/<\/th>//' | sed 's/Period//'| sed 's/,//' >> data$i 
+    grep '<th>' "${!i}" | sed 's/<th>//' | sed 's/<\/th>//' | sed 's/Period//'| sed 's/,//' >> data$i 
 
     # Put classes in the right order
     printf '%s\n' 6m1 11m2 16m3 9m5 13m6 17m7 12m9 15m10 18m11 15m13 17m14 19m15 w q | ed -s data$i
@@ -47,4 +55,5 @@ done
 echo Cleaning Up
 cat data* > sheet
 sed -i 's/[ \t]*$//' "sheet"
-sed -i '$!N;$!N;$!N;$!N;s/\n/,/g' "sheet"
+sed '$!N;$!N;$!N;$!N;s/\n/,/g' "sheet" > "$HOME/.config/managebac/sheet"
+rm sheet 

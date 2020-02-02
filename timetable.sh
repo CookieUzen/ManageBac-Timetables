@@ -97,7 +97,7 @@ function find() {
 
 }
 
-function set() {
+function setDatabase() {
     # Fetching ManageBac html file
     cd "$HOME"/.config/managebac
 
@@ -185,6 +185,6 @@ for (( i = 1; i < $# + 1; i++ )); do
         show)   show ;;
         help)   usage; exit 0 ;;
         find)   find ;;
-        set)    set ;;
+        set)    setDatabase ;;
     esac
 done
