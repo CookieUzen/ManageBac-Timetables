@@ -1,2 +1,2 @@
 # ManageBac-Timetables
-A script that helps scrap the ManageBac Timetable, and an script to display your next timetable.
+**NOTE, THIS BRANCH CONTAINS SOURCE CODE THAT IS BEING DEVELOPED, NOT FULLY FUNCTIONAL**
